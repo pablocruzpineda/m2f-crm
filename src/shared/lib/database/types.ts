@@ -990,6 +990,23 @@ export interface CreateMessageInput {
   metadata?: Record<string, unknown>;
 }
 
+// Message Helper Types
+export type MessageWithSender = Message & {
+  sender: Contact | { id: string; full_name: string | null; email: string | null; avatar_url?: string | null };
+  contact?: Contact;
+  sender_profile?: { id: string; full_name: string | null; email: string | null; avatar_url?: string | null } | null;
+};
+
+export interface MessageFilters {
+  contactId?: string;
+  startDate?: string;
+  endDate?: string;
+  messageType?: MessageType;
+  status?: MessageStatus;
+  search?: string;
+  metadata?: Record<string, unknown>;
+}
+
 // Chat Settings Types
 export type ChatSettings = Database['public']['Tables']['chat_settings']['Row'];
 export type CreateChatSettingsInput = Database['public']['Tables']['chat_settings']['Insert'];

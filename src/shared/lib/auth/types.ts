@@ -4,7 +4,7 @@
  */
 
 import type { Session } from '@supabase/supabase-js';
-import type { Tables } from '../supabase/types.js';
+import type { Tables } from '../database/types';
 
 /**
  * User profile from database
