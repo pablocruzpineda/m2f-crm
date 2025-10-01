@@ -9,3 +9,4 @@ export * from './model/useUnreadCount';
 export * from './model/useWorkspaceMessages';
 export * from './model/useContactsLastMessages';
 export * from './model/useSearchMessages';
+export * from './model/useMessageSubscription';

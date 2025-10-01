@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/dashboard';
 import { ContactsPage, ContactCreatePage, ContactDetailPage, ContactEditPage } from '@/pages/contacts';
 import { PipelinePage, DealCreatePage, DealDetailPage, DealEditPage } from '@/pages/pipeline';
 import { AppearanceSettingsPage } from '@/pages/settings';
+import { ChatPage, ChatSettingsPage } from '@/pages/chat';
 import { MainLayout } from '@/shared/ui/layouts/MainLayout';
 import { ProtectedRoute } from '@/shared/ui/protected-route.js';
 
@@ -136,10 +137,18 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <MainLayout>
-                      <div className="p-8">
-                        <h1 className="text-2xl font-bold text-foreground">Chat</h1>
-                        <p className="text-muted-foreground mt-2">Coming soon...</p>
-                      </div>
+                      <ChatPage />
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
+              
+              <Route
+                path="/chat/settings"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <ChatSettingsPage />
                     </MainLayout>
                   </ProtectedRoute>
                 }
