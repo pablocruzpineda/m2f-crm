@@ -19,6 +19,7 @@ export async function getDeals(
     stage_id,
     status,
     owner_id,
+    assigned_to,
     sortBy = 'created_at',
     sortOrder = 'desc',
     page = 1,
@@ -57,6 +58,11 @@ export async function getDeals(
 
   if (owner_id) {
     query = query.eq('owner_id', owner_id);
+  }
+
+  // Phase 5.3 - Assignment filter
+  if (assigned_to) {
+    query = query.eq('assigned_to', assigned_to);
   }
 
   // Sorting
@@ -138,7 +144,7 @@ export async function getDealsByStage(
 
   // Group deals by stage
   const dealsByStage: Record<string, DealWithRelations[]> = {};
-  
+
   stages.forEach((stage) => {
     dealsByStage[stage.id] = [];
   });
@@ -212,6 +218,10 @@ export async function createDeal(
       ...input,
       workspace_id: workspaceId,
       created_by: userId,
+      // Auto-assign to creator if not specified
+      assigned_to: input.assigned_to || userId,
+      assigned_by: userId,
+      assigned_at: new Date().toISOString(),
     })
     .select()
     .single();
@@ -221,7 +231,7 @@ export async function createDeal(
     throw error;
   }
 
-  // Create initial activity
+  // Create internal deal activity (for deal history)
   if (data) {
     await supabase.from('deal_activities').insert({
       deal_id: data.id,
@@ -231,6 +241,22 @@ export async function createDeal(
       description: `Deal "${data.title}" was created`,
       created_by: userId,
     });
+
+    // Log to main activity feed
+    if (userId) {
+      await logActivity({
+        workspace_id: workspaceId,
+        user_id: userId,
+        action: 'created',
+        entity_type: 'deal',
+        entity_id: data.id,
+        details: {
+          title: data.title,
+          value: data.value,
+          stage_id: data.stage_id,
+        },
+      });
+    }
   }
 
   return data;
@@ -243,6 +269,13 @@ export async function updateDeal(
   dealId: string,
   input: UpdateDealInput
 ): Promise<Deal> {
+  // Get existing deal for activity logging
+  const { data: existingDeal } = await supabase
+    .from('deals')
+    .select('workspace_id, title, status')
+    .eq('id', dealId)
+    .single();
+
   const { data, error } = await supabase
     .from('deals')
     .update(input)
@@ -253,6 +286,33 @@ export async function updateDeal(
   if (error) {
     console.error('Error updating deal:', error);
     throw error;
+  }
+
+  // Log activity
+  if (existingDeal && data) {
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session.session?.user?.id;
+
+    if (userId) {
+      // Check if status changed
+      const statusChanged = input.status && input.status !== existingDeal.status;
+
+      await logActivity({
+        workspace_id: existingDeal.workspace_id,
+        user_id: userId,
+        action: statusChanged ? 'status_changed' : 'updated',
+        entity_type: 'deal',
+        entity_id: dealId,
+        details: {
+          title: existingDeal.title,
+          updated_fields: Object.keys(input),
+          ...(statusChanged && {
+            old_status: existingDeal.status,
+            new_status: input.status,
+          }),
+        },
+      });
+    }
   }
 
   return data;
@@ -293,6 +353,7 @@ export async function updateDealStage(
 
   // Log activity if stage changed
   if (currentDeal && currentDeal.stage_id !== stageId) {
+    // Internal deal activity
     await supabase.from('deal_activities').insert({
       deal_id: dealId,
       workspace_id: currentDeal.workspace_id,
@@ -303,6 +364,23 @@ export async function updateDealStage(
       new_value: { stage_id: stageId },
       created_by: userId,
     });
+
+    // Main activity feed - log stage change
+    if (userId) {
+      await logActivity({
+        workspace_id: currentDeal.workspace_id,
+        user_id: userId,
+        action: 'status_changed',
+        entity_type: 'deal',
+        entity_id: dealId,
+        details: {
+          title: currentDeal.title,
+          change_type: 'stage',
+          old_stage_id: currentDeal.stage_id,
+          new_stage_id: stageId,
+        },
+      });
+    }
   }
 
   return data;
@@ -312,11 +390,38 @@ export async function updateDealStage(
  * Delete a deal
  */
 export async function deleteDeal(dealId: string): Promise<void> {
+  // Get deal info before deletion
+  const { data: deal } = await supabase
+    .from('deals')
+    .select('workspace_id, title, value')
+    .eq('id', dealId)
+    .single();
+
   const { error } = await supabase.from('deals').delete().eq('id', dealId);
 
   if (error) {
     console.error('Error deleting deal:', error);
     throw error;
+  }
+
+  // Log activity
+  if (deal) {
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session.session?.user?.id;
+
+    if (userId) {
+      await logActivity({
+        workspace_id: deal.workspace_id,
+        user_id: userId,
+        action: 'deleted',
+        entity_type: 'deal',
+        entity_id: dealId,
+        details: {
+          title: deal.title,
+          value: deal.value,
+        },
+      });
+    }
   }
 }
 
@@ -406,5 +511,103 @@ export async function addDealNote(
   if (error) {
     console.error('Error adding deal note:', error);
     throw error;
+  }
+}
+
+/**
+ * Assign a deal to a team member
+ */
+export async function assignDeal(
+  dealId: string,
+  assignToUserId: string
+): Promise<Deal> {
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user?.id;
+
+  const { data, error } = await supabase
+    .from('deals')
+    .update({
+      assigned_to: assignToUserId,
+      assigned_by: userId,
+      assigned_at: new Date().toISOString(),
+    })
+    .eq('id', dealId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error assigning deal:', error);
+    throw error;
+  }
+
+  // Log activity
+  if (userId) {
+    await logActivity({
+      workspace_id: data.workspace_id,
+      user_id: userId,
+      action: 'assigned',
+      entity_type: 'deal',
+      entity_id: dealId,
+      details: {
+        title: data.title,
+        assigned_to: assignToUserId,
+      },
+    });
+  }
+
+  return data;
+}
+
+/**
+ * Bulk assign multiple deals to a team member
+ */
+export async function bulkAssignDeals(
+  dealIds: string[],
+  assignToUserId: string
+): Promise<number> {
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user?.id;
+
+  const { error } = await supabase
+    .from('deals')
+    .update({
+      assigned_to: assignToUserId,
+      assigned_by: userId,
+      assigned_at: new Date().toISOString(),
+    })
+    .in('id', dealIds);
+
+  if (error) {
+    console.error('Error bulk assigning deals:', error);
+    throw error;
+  }
+
+  return dealIds.length;
+}
+
+/**
+ * Log activity to activity_log table
+ * Helper function for tracking user actions on deals
+ */
+async function logActivity(params: {
+  workspace_id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id?: string;
+  details?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await supabase.from('activity_log').insert({
+      workspace_id: params.workspace_id,
+      user_id: params.user_id,
+      action: params.action,
+      entity_type: params.entity_type,
+      entity_id: params.entity_id,
+      details: params.details as never,
+    });
+  } catch (error) {
+    // Don't throw - activity logging is non-critical
+    console.error('Failed to log activity:', error);
   }
 }

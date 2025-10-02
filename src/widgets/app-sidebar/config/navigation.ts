@@ -9,6 +9,8 @@ import {
   Workflow,
   MessageSquare,
   Settings,
+  UsersRound,
+  Activity,
 } from 'lucide-react';
 import type { NavigationGroup } from '@/shared/lib/navigation/types';
 
@@ -40,13 +42,23 @@ export const navigationGroups: NavigationGroup[] = [
         href: '/chat',
         icon: MessageSquare,
       },
+      {
+        label: 'Activity',
+        href: '/activity',
+        icon: Activity,
+      },
     ],
   },
   {
     title: 'Settings',
     items: [
       {
-        label: 'Settings',
+        label: 'Team',
+        href: '/settings/team',
+        icon: UsersRound,
+      },
+      {
+        label: 'Appearance',
         href: '/settings',
         icon: Settings,
       },

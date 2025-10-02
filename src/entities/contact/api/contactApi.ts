@@ -40,10 +40,15 @@ export async function getContacts(
     query = query.eq('status', filters.status);
   }
 
+  // Apply assignment filter (Phase 5.3)
+  if (filters?.assigned_to) {
+    query = query.eq('assigned_to', filters.assigned_to);
+  }
+
   // Apply sorting
   const sortBy = filters?.sortBy || 'created_at';
   const sortOrder = filters?.sortOrder || 'desc';
-  
+
   if (sortBy === 'name') {
     query = query.order('first_name', { ascending: sortOrder === 'asc' });
   } else {
@@ -114,16 +119,22 @@ export async function createContact(
   input: CreateContactInput
 ): Promise<Contact> {
   const { data: session } = await supabase.auth.getSession();
-  
+
   if (!session.session) {
     throw new Error('Not authenticated');
   }
+
+  const userId = session.session.user.id;
 
   const { data, error } = await supabase
     .from('contacts')
     .insert({
       ...input,
-      created_by: session.session.user.id,
+      created_by: userId,
+      // Auto-assign to creator if not specified
+      assigned_to: input.assigned_to || userId,
+      assigned_by: userId,
+      assigned_at: new Date().toISOString(),
     })
     .select()
     .single();
@@ -131,6 +142,20 @@ export async function createContact(
   if (error) {
     throw error;
   }
+
+  // Log activity
+  await logActivity({
+    workspace_id: input.workspace_id,
+    user_id: userId,
+    action: 'created',
+    entity_type: 'contact',
+    entity_id: data.id,
+    details: {
+      name: `${input.first_name} ${input.last_name}`.trim(),
+      email: input.email,
+      company: input.company,
+    },
+  });
 
   return data;
 }
@@ -142,6 +167,13 @@ export async function updateContact(
   id: string,
   input: UpdateContactInput
 ): Promise<Contact> {
+  // Get the contact first to access workspace_id
+  const { data: existingContact } = await supabase
+    .from('contacts')
+    .select('workspace_id, first_name, last_name')
+    .eq('id', id)
+    .single();
+
   const { data, error } = await supabase
     .from('contacts')
     .update(input)
@@ -153,6 +185,24 @@ export async function updateContact(
     throw error;
   }
 
+  // Log activity
+  if (existingContact) {
+    const { data: session } = await supabase.auth.getSession();
+    if (session.session) {
+      await logActivity({
+        workspace_id: existingContact.workspace_id,
+        user_id: session.session.user.id,
+        action: 'updated',
+        entity_type: 'contact',
+        entity_id: id,
+        details: {
+          name: `${existingContact.first_name} ${existingContact.last_name}`.trim(),
+          updated_fields: Object.keys(input),
+        },
+      });
+    }
+  }
+
   return data;
 }
 
@@ -160,10 +210,34 @@ export async function updateContact(
  * Delete a contact
  */
 export async function deleteContact(id: string): Promise<void> {
+  // Get the contact first to log activity
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('workspace_id, first_name, last_name')
+    .eq('id', id)
+    .single();
+
   const { error } = await supabase.from('contacts').delete().eq('id', id);
 
   if (error) {
     throw error;
+  }
+
+  // Log activity
+  if (contact) {
+    const { data: session } = await supabase.auth.getSession();
+    if (session.session) {
+      await logActivity({
+        workspace_id: contact.workspace_id,
+        user_id: session.session.user.id,
+        action: 'deleted',
+        entity_type: 'contact',
+        entity_id: id,
+        details: {
+          name: `${contact.first_name} ${contact.last_name}`.trim(),
+        },
+      });
+    }
   }
 }
 
@@ -188,4 +262,106 @@ export async function searchContacts(
   }
 
   return data || [];
+}
+
+/**
+ * Assign a contact to a user
+ * Phase 5.3 - Team Collaboration
+ */
+export async function assignContact(
+  contactId: string,
+  assignToUserId: string
+): Promise<Contact> {
+  const { data: session } = await supabase.auth.getSession();
+
+  if (!session.session) {
+    throw new Error('Not authenticated');
+  }
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .update({
+      assigned_to: assignToUserId,
+      assigned_by: session.session.user.id,
+      assigned_at: new Date().toISOString(),
+    })
+    .eq('id', contactId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  // Log activity
+  await logActivity({
+    workspace_id: data.workspace_id,
+    user_id: session.session.user.id,
+    action: 'assigned',
+    entity_type: 'contact',
+    entity_id: contactId,
+    details: {
+      name: `${data.first_name} ${data.last_name}`.trim(),
+      assigned_to: assignToUserId,
+    },
+  });
+
+  return data;
+}
+
+/**
+ * Bulk assign contacts to a user
+ * Phase 5.3 - Team Collaboration
+ */
+export async function bulkAssignContacts(
+  contactIds: string[],
+  assignToUserId: string
+): Promise<number> {
+  const { data: session } = await supabase.auth.getSession();
+
+  if (!session.session) {
+    throw new Error('Not authenticated');
+  }
+
+  const { error } = await supabase
+    .from('contacts')
+    .update({
+      assigned_to: assignToUserId,
+      assigned_by: session.session.user.id,
+      assigned_at: new Date().toISOString(),
+    })
+    .in('id', contactIds);
+
+  if (error) {
+    throw error;
+  }
+
+  return contactIds.length;
+}
+
+/**
+ * Log activity to activity_log table
+ * Helper function for tracking user actions
+ */
+async function logActivity(params: {
+  workspace_id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id?: string;
+  details?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await supabase.from('activity_log').insert({
+      workspace_id: params.workspace_id,
+      user_id: params.user_id,
+      action: params.action,
+      entity_type: params.entity_type,
+      entity_id: params.entity_id,
+      details: params.details as never,
+    });
+  } catch (error) {
+    // Don't throw - activity logging is non-critical
+    console.error('Failed to log activity:', error);
+  }
 }

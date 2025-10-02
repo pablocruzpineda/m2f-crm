@@ -17,40 +17,46 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   if (profileCache.has(userId)) {
     return profileCache.get(userId)!;
   }
-  
+
   const profilePromise = (async () => {
     try {
-      // Add timeout to prevent infinite hang - 10s for initial load
+      // Shorter timeout (5s) with better error handling
       const fetchPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors if not found
 
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Profile fetch timeout after 10 seconds')), 10000);
+        setTimeout(() => reject(new Error('Profile fetch timeout after 5 seconds')), 5000);
       });
 
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
 
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        throw error;
+      // Check for errors
+      if (result.error) {
+        console.error('Error fetching user profile:', result.error);
+        // Don't throw on profile not found - return null instead
+        if (result.error.code === 'PGRST116') {
+          return null;
+        }
+        throw result.error;
       }
 
-      return data;
+      return result.data;
     } catch (error) {
       console.error('Fatal error fetching profile:', error);
-      throw error;
+      // Return null instead of throwing to prevent blocking the UI
+      return null;
     } finally {
       // Clear cache after request completes (success or failure)
       profileCache.delete(userId);
     }
   })();
-  
+
   // Cache the promise
   profileCache.set(userId, profilePromise);
-  
+
   return profilePromise;
 }
 

@@ -3,6 +3,7 @@ import { Save, X } from 'lucide-react';
 import { BasicInfoSection } from './BasicInfoSection';
 import { AddressSection } from './AddressSection';
 import { SocialSection } from './SocialSection';
+import { AssignmentSection } from './AssignmentSection';
 import type { CreateContactInput } from '@/shared/lib/database/types';
 
 interface ContactFormProps {
@@ -114,6 +115,9 @@ export function ContactForm({
 
       {/* Social Links */}
       <SocialSection data={formData} errors={errors} onChange={handleChange} />
+
+      {/* Assignment */}
+      <AssignmentSection data={formData} errors={errors} onChange={handleChange} />
 
       {/* Notes */}
       <div className="rounded-lg border border bg-card p-6">

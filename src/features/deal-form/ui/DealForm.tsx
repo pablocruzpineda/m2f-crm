@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Save, X } from 'lucide-react';
+import { useTeamMembers } from '@/entities/team';
+import { useUserRole } from '@/entities/workspace';
+import { useSession } from '@/entities/session';
 import type { CreateDealInput } from '@/shared/lib/database/types';
 
 interface DealFormProps {
@@ -22,6 +25,11 @@ export function DealForm({
   stages,
   contacts = [],
 }: DealFormProps) {
+  const { session } = useSession();
+  const { data: members, isLoading: membersLoading } = useTeamMembers();
+  const { canAssignToOthers } = useUserRole();
+  const currentUserId = session?.user?.id;
+
   const [formData, setFormData] = useState<Partial<CreateDealInput>>({
     title: initialData?.title || '',
     description: initialData?.description || '',
@@ -106,11 +114,10 @@ export function DealForm({
               id="title"
               value={formData.title || ''}
               onChange={(e) => handleChange('title', e.target.value)}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                errors.title
+              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors.title
                   ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                   : 'border focus:border-primary focus:ring-primary'
-              }`}
+                }`}
               placeholder="e.g., Enterprise Software Deal"
             />
             {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
@@ -140,11 +147,10 @@ export function DealForm({
               id="stage_id"
               value={formData.stage_id || ''}
               onChange={(e) => handleChange('stage_id', e.target.value)}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                errors.stage_id
+              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors.stage_id
                   ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                   : 'border focus:border-primary focus:ring-primary'
-              }`}
+                }`}
             >
               <option value="">Select a stage</option>
               {stages.map((stage) => (
@@ -184,11 +190,10 @@ export function DealForm({
               id="value"
               value={formData.value || ''}
               onChange={(e) => handleChange('value', parseFloat(e.target.value) || 0)}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                errors.value
+              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors.value
                   ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                   : 'border focus:border-primary focus:ring-primary'
-              }`}
+                }`}
               placeholder="0.00"
               step="0.01"
               min="0"
@@ -224,11 +229,10 @@ export function DealForm({
               id="probability"
               value={formData.probability || ''}
               onChange={(e) => handleChange('probability', parseInt(e.target.value) || 0)}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                errors.probability
+              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors.probability
                   ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                   : 'border focus:border-primary focus:ring-primary'
-              }`}
+                }`}
               placeholder="0"
               min="0"
               max="100"
@@ -286,6 +290,35 @@ export function DealForm({
               placeholder="e.g., Website, Referral, Event"
             />
           </div>
+
+          {/* Assignment - Only show if user can assign to others */}
+          {canAssignToOthers && (
+            <div className="sm:col-span-2">
+              <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700">
+                Assign To
+              </label>
+              <select
+                id="assigned_to"
+                value={formData.assigned_to || ''}
+                onChange={(e) => handleChange('assigned_to', e.target.value || undefined)}
+                disabled={membersLoading}
+                className="mt-1 block w-full rounded-md border shadow-sm focus:border-primary focus:ring-primary sm:text-sm"
+              >
+                <option value="">Auto-assign to me</option>
+                {members?.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.full_name || member.email}
+                    {member.id === currentUserId ? ' (Me)' : ''}
+                    {' - '}
+                    {member.role}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Select a team member to assign this deal to. Leave empty to assign to yourself.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

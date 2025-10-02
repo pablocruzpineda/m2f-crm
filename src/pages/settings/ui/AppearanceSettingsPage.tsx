@@ -4,8 +4,8 @@
  */
 
 import { useState } from 'react';
-import { Save, X, RotateCcw } from 'lucide-react';
-import { useCurrentWorkspace } from '@/entities/workspace';
+import { Save, X, RotateCcw, AlertTriangle } from 'lucide-react';
+import { useCurrentWorkspace, useUserRole } from '@/entities/workspace';
 import { useUploadLogo, useDeleteLogo, useUpdateTheme } from '@/entities/workspace';
 import { ThemePicker } from '@/features/theme-picker';
 import { ImageUpload } from '@/shared/ui/image-upload';
@@ -36,22 +36,23 @@ const DEFAULT_THEME: WorkspaceTheme = {
 
 export function AppearanceSettingsPage() {
   const { currentWorkspace } = useCurrentWorkspace();
-  
+  const { canChangeTheme } = useUserRole();
+
   const uploadLogo = useUploadLogo(currentWorkspace?.id || '');
   const deleteLogo = useDeleteLogo(currentWorkspace?.id || '', currentWorkspace?.logo_storage_path || undefined);
   const updateTheme = useUpdateTheme(currentWorkspace?.id || '');
 
   // Parse theme_config from JSON
-  const currentThemeConfig = currentWorkspace?.theme_config 
-    ? (typeof currentWorkspace.theme_config === 'string' 
-        ? JSON.parse(currentWorkspace.theme_config) 
-        : currentWorkspace.theme_config) as WorkspaceTheme
+  const currentThemeConfig = currentWorkspace?.theme_config
+    ? (typeof currentWorkspace.theme_config === 'string'
+      ? JSON.parse(currentWorkspace.theme_config)
+      : currentWorkspace.theme_config) as WorkspaceTheme
     : {
-        primary_color: '#4F46E5',
-        secondary_color: '#10B981',
-        accent_color: '#F59E0B',
-        theme_mode: 'light' as const,
-      };
+      primary_color: '#4F46E5',
+      secondary_color: '#10B981',
+      accent_color: '#F59E0B',
+      theme_mode: 'light' as const,
+    };
 
   const [previewTheme, setPreviewTheme] = useState<WorkspaceTheme | null>(null);
   const [showResetDialog, setShowResetDialog] = useState(false);
@@ -63,6 +64,34 @@ export function AppearanceSettingsPage() {
         <div className="flex h-full items-center justify-center">
           <p className="text-muted-foreground">Loading workspace...</p>
         </div>
+      </PageContainer>
+    );
+  }
+
+  // Phase 5.3 - Only workspace owner can change theme
+  if (!canChangeTheme) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title="Appearance"
+          description="Customize your workspace logo and theme"
+        />
+        <Card className="border-destructive">
+          <CardHeader>
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-destructive/15 p-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <CardTitle className="text-destructive">Access Restricted</CardTitle>
+                <CardDescription className="mt-2">
+                  Only the workspace owner can change theme and appearance settings.
+                  Please contact your workspace owner if you need to make changes.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
       </PageContainer>
     );
   }
@@ -121,21 +150,21 @@ export function AppearanceSettingsPage() {
     try {
       // Apply default theme immediately
       applyTheme(DEFAULT_THEME);
-      
+
       // Save theme to database
       await updateTheme.mutateAsync(DEFAULT_THEME);
-      
+
       // Remove logo if user chose to
       if (resetIncludeLogo && currentWorkspace?.logo_storage_path) {
         await deleteLogo.mutateAsync();
       }
-      
+
       // Clear preview state
       setPreviewTheme(null);
-      
+
       // Close dialog
       setShowResetDialog(false);
-      
+
       console.log(`Theme reset to default successfully${resetIncludeLogo ? ' (logo removed)' : ''}`);
     } catch (error) {
       console.error('Theme reset error:', error);

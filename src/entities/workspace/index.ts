@@ -8,3 +8,4 @@ export * from './model/useWorkspaces.js';
 export * from './model/useCurrentWorkspace.js';
 export * from './model/useUploadLogo.js';
 export * from './model/useUpdateTheme.js';
+export * from './model/useUserRole.js';

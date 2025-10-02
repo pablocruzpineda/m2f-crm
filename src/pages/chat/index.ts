@@ -12,4 +12,4 @@ export { ChatHeader } from './ui/ChatHeader';
 export { ChatMessageList } from './ui/ChatMessageList';
 export { ChatBubble } from './ui/ChatBubble';
 export { ChatInput } from './ui/ChatInput';
-export { ChatSettingsPage } from './settings/ChatSettingsPage';
+export { ChatSettingsPageNew as ChatSettingsPage } from './settings/ChatSettingsPageNew';

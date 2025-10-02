@@ -6,27 +6,87 @@ import type {
 } from '@/shared/lib/database/types';
 
 /**
- * Get chat settings for a workspace
+ * Get workspace default chat settings (user_id = NULL)
+ * Phase 5.3 - Team Collaboration
  */
-export async function getChatSettings(
+export async function getWorkspaceChatSettings(
   workspaceId: string
 ): Promise<ChatSettings | null> {
   const { data, error } = await supabase
     .from('chat_settings')
     .select('*')
     .eq('workspace_id', workspaceId)
+    .is('user_id', null)
     .single();
 
   if (error) {
-    // If no settings exist yet, return null (not an error)
     if (error.code === 'PGRST116') {
       return null;
     }
-    console.error('Error fetching chat settings:', error);
+    console.error('Error fetching workspace chat settings:', error);
     throw error;
   }
 
   return data;
+}
+
+/**
+ * Get personal chat settings for a user (user_id = specific user)
+ * Phase 5.3 - Team Collaboration
+ */
+export async function getPersonalChatSettings(
+  workspaceId: string,
+  userId: string
+): Promise<ChatSettings | null> {
+  const { data, error } = await supabase
+    .from('chat_settings')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null;
+    }
+    console.error('Error fetching personal chat settings:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Get chat settings for sending (with fallback logic)
+ * Phase 5.3 - Try personal first, fallback to workspace default
+ */
+export async function getChatSettingsForSending(
+  workspaceId: string,
+  userId: string
+): Promise<ChatSettings | null> {
+  // Try personal settings first
+  const personalSettings = await getPersonalChatSettings(workspaceId, userId);
+  if (personalSettings?.is_active && personalSettings?.api_endpoint) {
+    return personalSettings;
+  }
+
+  // Fallback to workspace default
+  const workspaceSettings = await getWorkspaceChatSettings(workspaceId);
+  if (workspaceSettings?.is_active && workspaceSettings?.api_endpoint) {
+    return workspaceSettings;
+  }
+
+  return null;
+}
+
+/**
+ * Get chat settings for a workspace (deprecated - use getWorkspaceChatSettings)
+ * @deprecated Use getWorkspaceChatSettings or getPersonalChatSettings instead
+ */
+export async function getChatSettings(
+  workspaceId: string
+): Promise<ChatSettings | null> {
+  return getWorkspaceChatSettings(workspaceId);
 }
 
 /**
@@ -80,22 +140,56 @@ export async function updateChatSettings(
 }
 
 /**
- * Update or create chat settings (upsert)
+ * Update or create workspace chat settings (upsert)
  */
-export async function upsertChatSettings(
+export async function upsertWorkspaceChatSettings(
   workspaceId: string,
-  updates: Omit<UpdateChatSettingsInput, 'workspace_id'>
+  updates: Omit<UpdateChatSettingsInput, 'workspace_id' | 'user_id'>
 ): Promise<ChatSettings> {
-  const existing = await getChatSettings(workspaceId);
+  const existing = await getWorkspaceChatSettings(workspaceId);
 
   if (existing) {
     return updateChatSettings(existing.id, updates);
   } else {
     return createChatSettings({
       workspace_id: workspaceId,
+      user_id: null,
       ...updates,
     });
   }
+}
+
+/**
+ * Update or create personal chat settings (upsert)
+ * Phase 5.3 - Team Collaboration
+ */
+export async function upsertPersonalChatSettings(
+  workspaceId: string,
+  userId: string,
+  updates: Omit<UpdateChatSettingsInput, 'workspace_id' | 'user_id'>
+): Promise<ChatSettings> {
+  const existing = await getPersonalChatSettings(workspaceId, userId);
+
+  if (existing) {
+    return updateChatSettings(existing.id, updates);
+  } else {
+    return createChatSettings({
+      workspace_id: workspaceId,
+      user_id: userId,
+      ...updates,
+    });
+  }
+}
+
+/**
+ * Update or create chat settings (upsert) - deprecated
+ * @deprecated Use upsertWorkspaceChatSettings or upsertPersonalChatSettings
+ */
+export async function upsertChatSettings(
+  workspaceId: string,
+  updates: Omit<UpdateChatSettingsInput, 'workspace_id'>
+): Promise<ChatSettings> {
+  return upsertWorkspaceChatSettings(workspaceId, updates);
 }
 
 /**
@@ -132,6 +226,36 @@ export async function toggleChatActive(
   return upsertChatSettings(workspaceId, {
     is_active: isActive,
   });
+}
+
+/**
+ * Get team WhatsApp status (for owners/admins)
+ * Phase 5.3 - Shows which team members have personal settings
+ */
+export async function getTeamWhatsAppStatus(workspaceId: string) {
+  const { data, error } = await supabase
+    .from('chat_settings')
+    .select(`
+      user_id,
+      is_active,
+      api_endpoint,
+      updated_at,
+      profiles:user_id (
+        id,
+        email,
+        full_name
+      )
+    `)
+    .eq('workspace_id', workspaceId)
+    .not('user_id', 'is', null)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching team WhatsApp status:', error);
+    throw error;
+  }
+
+  return data;
 }
 
 /**
