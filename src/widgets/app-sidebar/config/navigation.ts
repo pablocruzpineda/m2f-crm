@@ -11,6 +11,9 @@ import {
   Settings,
   UsersRound,
   Activity,
+  Coins,
+  Bot,
+  Smartphone,
 } from 'lucide-react';
 import type { NavigationGroup } from '@/shared/lib/navigation/types';
 
@@ -46,6 +49,26 @@ export const navigationGroups: NavigationGroup[] = [
         label: 'Activity',
         href: '/activity',
         icon: Activity,
+      },
+    ],
+  },
+  {
+    title: 'Intelligence',
+    items: [
+      {
+        label: 'Credits',
+        href: '/intelligence/credits',
+        icon: Coins,
+      },
+      {
+        label: 'Agents',
+        href: '/intelligence/agents',
+        icon: Bot,
+      },
+      {
+        label: 'Devices',
+        href: '/intelligence/devices',
+        icon: Smartphone,
       },
     ],
   },

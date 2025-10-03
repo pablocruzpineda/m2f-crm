@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
-import { useCurrentWorkspace } from '@/entities/workspace';
+import { useCurrentWorkspace, useUserRole } from '@/entities/workspace';
 import { navigationGroups } from '../config/navigation';
 
 interface AppSidebarProps {
@@ -26,7 +26,8 @@ declare global {
 export function AppSidebar({ isCollapsed, onToggle, onNavigate }: AppSidebarProps) {
   const location = useLocation();
   const { currentWorkspace } = useCurrentWorkspace();
-  
+  const { role } = useUserRole();
+
   // Initialize logo from global variable set by inline script (instant, no flash)
   const [logoUrl, setLogoUrl] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -170,8 +171,8 @@ export function AppSidebar({ isCollapsed, onToggle, onNavigate }: AppSidebarProp
           <p className="text-xs font-medium text-foreground">
             {currentWorkspace?.name || 'Workspace'}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Phase 5.1: Customization
+          <p className="text-xs text-muted-foreground mt-1 capitalize">
+            {role || 'Member'}
           </p>
         </div>
       )}

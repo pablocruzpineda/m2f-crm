@@ -12,6 +12,7 @@ import { TeamMembersPage } from '@/pages/settings/team/TeamMembersPage';
 import { ChatPage, ChatSettingsPage } from '@/pages/chat';
 import { ActivityFeedPage } from '@/pages/activity';
 import { AcceptInvitationPage } from '@/pages/accept-invitation/AcceptInvitationPage';
+import { CreditsPage, AgentsPage, DevicesPage } from '@/pages/intelligence';
 import { MainLayout } from '@/shared/ui/layouts/MainLayout';
 import { ProtectedRoute } from '@/shared/ui/protected-route.js';
 
@@ -199,6 +200,40 @@ function App() {
                     <ProtectedRoute>
                       <MainLayout>
                         <ActivityFeedPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Intelligence routes */}
+                <Route
+                  path="/intelligence/credits"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <CreditsPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/intelligence/agents"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <AgentsPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/intelligence/devices"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <DevicesPage />
                       </MainLayout>
                     </ProtectedRoute>
                   }
