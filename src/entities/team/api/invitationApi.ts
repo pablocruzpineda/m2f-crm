@@ -26,12 +26,30 @@ export async function sendTeamInvitation(params: SendInvitationParams): Promise<
     const { workspace_id, email, full_name, phone, role, country_code, invitedBy } = params;
 
     // 1. Check if WhatsApp is configured for this workspace
-    const { data: chatSettings } = await supabase
+    // Try personal settings first, then fallback to workspace default
+    let chatSettings;
+
+    // Try personal settings
+    const { data: personalSettings } = await supabase
         .from('chat_settings')
         .select('is_active, api_key, api_secret, api_endpoint, config')
         .eq('workspace_id', workspace_id)
         .eq('user_id', invitedBy)
         .maybeSingle();
+
+    if (personalSettings?.is_active && personalSettings?.api_key && personalSettings?.api_endpoint) {
+        chatSettings = personalSettings;
+    } else {
+        // Fallback to workspace default settings
+        const { data: workspaceSettings } = await supabase
+            .from('chat_settings')
+            .select('is_active, api_key, api_secret, api_endpoint, config')
+            .eq('workspace_id', workspace_id)
+            .is('user_id', null)
+            .maybeSingle();
+
+        chatSettings = workspaceSettings;
+    }
 
     if (!chatSettings?.is_active || !chatSettings?.api_key || !chatSettings?.api_endpoint) {
         throw new Error('WhatsApp integration is not enabled. Please configure WhatsApp settings first.');
@@ -148,16 +166,33 @@ export async function resendInvitation(invitationId: string): Promise<void> {
         throw new Error('Can only resend pending invitations');
     }
 
-    // 2. Get WhatsApp settings
+    // 2. Get WhatsApp settings with fallback logic
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const { data: chatSettings } = await supabase
+    let chatSettings;
+
+    // Try personal settings first
+    const { data: personalSettings } = await supabase
         .from('chat_settings')
         .select('is_active, api_key, api_secret, api_endpoint, config')
         .eq('workspace_id', invitation.workspace_id)
         .eq('user_id', invitation.invited_by)
         .maybeSingle();
+
+    if (personalSettings?.is_active && personalSettings?.api_key && personalSettings?.api_endpoint) {
+        chatSettings = personalSettings;
+    } else {
+        // Fallback to workspace default settings
+        const { data: workspaceSettings } = await supabase
+            .from('chat_settings')
+            .select('is_active, api_key, api_secret, api_endpoint, config')
+            .eq('workspace_id', invitation.workspace_id)
+            .is('user_id', null)
+            .maybeSingle();
+
+        chatSettings = workspaceSettings;
+    }
 
     if (!chatSettings?.is_active || !chatSettings?.api_key || !chatSettings?.api_endpoint) {
         throw new Error('WhatsApp integration is not configured or active');
@@ -310,7 +345,7 @@ export async function acceptInvitation(token: string, password: string): Promise
     if (profileError) console.error('Profile creation error:', profileError);
 
     // 5. Add to workspace
-    await supabase
+    const { error: memberError } = await supabase
         .from('workspace_members')
         .insert({
             workspace_id: invitation.workspace_id,
@@ -318,8 +353,13 @@ export async function acceptInvitation(token: string, password: string): Promise
             role: invitation.role as Role,
         });
 
+    if (memberError) {
+        console.error('Failed to add user to workspace:', memberError);
+        throw new Error(`Failed to add you to the workspace: ${memberError.message}`);
+    }
+
     // 6. Mark invitation as accepted
-    await supabase
+    const { error: updateError } = await supabase
         .from('team_invitations')
         .update({
             status: 'accepted',
@@ -328,6 +368,11 @@ export async function acceptInvitation(token: string, password: string): Promise
             updated_at: new Date().toISOString(),
         })
         .eq('id', invitation.id);
+
+    if (updateError) {
+        console.error('Failed to update invitation status:', updateError);
+        // Don't throw here - user is already in workspace, this is just status tracking
+    }
 
     return {
         email: invitation.email,
@@ -364,24 +409,17 @@ This invitation expires in 7 days.
 Welcome aboard! 🎉`;
 
     // Use the configured external endpoint from chat_settings
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-    };
-
-    // Add authentication headers if configured
-    if (chatSettings.api_key) {
-        headers['X-API-Key'] = chatSettings.api_key;
-    }
-    if (chatSettings.api_secret) {
-        headers['X-API-Secret'] = chatSettings.api_secret;
-    }
-
+    // Note: Authentication is in the body to avoid CORS preflight issues
     const response = await fetch(chatSettings.api_endpoint, {
         method: 'POST',
-        headers,
+        headers: {
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-            phone,
+            phoneNumber: phone,
             message,
+            apiKey: chatSettings.api_key,
+            apiSecret: chatSettings.api_secret || undefined,
         }),
     });
 

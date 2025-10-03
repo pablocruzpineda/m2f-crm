@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider, WorkspaceProvider, ThemeProvider } from '@/app/providers';
 import { QueryProvider } from '@/app/providers/QueryProvider.js';
 import { LoginPage } from '@/pages/auth/login';
@@ -6,7 +7,7 @@ import { SignupPage } from '@/pages/auth/signup';
 import { DashboardPage } from '@/pages/dashboard';
 import { ContactsPage, ContactCreatePage, ContactDetailPage, ContactEditPage } from '@/pages/contacts';
 import { PipelinePage, DealCreatePage, DealDetailPage, DealEditPage } from '@/pages/pipeline';
-import { AppearanceSettingsPage } from '@/pages/settings';
+import { AppearanceSettingsPage, ProfileSettingsPage } from '@/pages/settings';
 import { TeamMembersPage } from '@/pages/settings/team/TeamMembersPage';
 import { ChatPage, ChatSettingsPage } from '@/pages/chat';
 import { ActivityFeedPage } from '@/pages/activity';
@@ -21,6 +22,7 @@ function App() {
         <AuthProvider>
           <WorkspaceProvider>
             <ThemeProvider>
+              <Toaster position="bottom-right" richColors />
               <Routes>
                 {/* Public routes */}
                 <Route path="/login" element={<LoginPage />} />
@@ -164,6 +166,17 @@ function App() {
                     <ProtectedRoute>
                       <MainLayout>
                         <AppearanceSettingsPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/settings/profile"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <ProfileSettingsPage />
                       </MainLayout>
                     </ProtectedRoute>
                   }

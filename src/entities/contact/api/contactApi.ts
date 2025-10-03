@@ -140,6 +140,10 @@ export async function createContact(
     .single();
 
   if (error) {
+    // Handle duplicate phone number constraint
+    if (error.code === '23505' && error.message.includes('unique_phone_per_workspace')) {
+      throw new Error('A contact with this phone number already exists in your workspace');
+    }
     throw error;
   }
 
@@ -182,6 +186,10 @@ export async function updateContact(
     .single();
 
   if (error) {
+    // Handle duplicate phone number constraint
+    if (error.code === '23505' && error.message.includes('unique_phone_per_workspace')) {
+      throw new Error('This phone number is already used by another contact in your workspace');
+    }
     throw error;
   }
 

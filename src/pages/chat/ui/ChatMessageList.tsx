@@ -3,7 +3,7 @@
  * @description Scrollable message container with date separators
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { ChatBubble } from './ChatBubble';
 import { useContactMessages, useMarkContactMessagesAsRead } from '@/entities/message';
@@ -19,23 +19,42 @@ export function ChatMessageList({ contactId }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useSession();
   const markAsRead = useMarkContactMessagesAsRead();
+  const hasMarkedRef = useRef<Set<string>>(new Set()); // Track which contacts we've marked
 
   const { data: messages = [], isLoading } = useContactMessages(contactId);
 
+  // Count unread messages from contact
+  const unreadCount = useMemo(() => {
+    return messages.filter(
+      (msg) => msg.sender_type === 'contact' && msg.status !== 'read'
+    ).length;
+  }, [messages]);
+
   // Mark messages as read when viewing this contact's messages
   useEffect(() => {
-    if (contactId && messages.length > 0) {
-      // Check if there are any unread messages from this contact
-      const hasUnreadMessages = messages.some(
-        (msg) => msg.sender_type === 'contact' && msg.status !== 'read'
-      );
-
-      if (hasUnreadMessages) {
-        // Mark all contact messages as read
-        markAsRead.mutate(contactId);
-      }
+    // Only mark as read if:
+    // 1. We have a contactId
+    // 2. There are unread messages
+    // 3. We haven't already tried to mark this contact as read recently
+    // 4. The mutation is not currently pending
+    if (
+      contactId &&
+      unreadCount > 0 &&
+      !hasMarkedRef.current.has(contactId) &&
+      !markAsRead.isPending
+    ) {
+      hasMarkedRef.current.add(contactId);
+      markAsRead.mutate(contactId, {
+        onSettled: () => {
+          // Remove from set after a delay to allow retry if needed
+          setTimeout(() => {
+            hasMarkedRef.current.delete(contactId);
+          }, 5000);
+        },
+      });
     }
-  }, [contactId, messages, markAsRead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactId, unreadCount]); // Only depend on contactId and unread count
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -89,7 +108,7 @@ export function ChatMessageList({ contactId }: ChatMessageListProps) {
           {/* Messages for this date */}
           {group.messages.map((message) => {
             const isOwnMessage = message.sender_type === 'user' && message.sender_id === user?.id;
-            
+
             return (
               <ChatBubble
                 key={message.id}
@@ -138,12 +157,12 @@ function formatDateSeparator(date: Date): string {
   if (isYesterday(date)) {
     return 'Yesterday';
   }
-  
+
   // Check if within this year
   const now = new Date();
   if (date.getFullYear() === now.getFullYear()) {
     return format(date, 'MMMM d'); // "January 15"
   }
-  
+
   return format(date, 'MMMM d, yyyy'); // "January 15, 2024"
 }

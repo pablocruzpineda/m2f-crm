@@ -30,11 +30,10 @@ export function BasicInfoSection({ data, errors, onChange }: BasicInfoSectionPro
             id="first_name"
             value={data.first_name || ''}
             onChange={(e) => onChange('first_name', e.target.value)}
-            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-              errors.first_name
+            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors.first_name
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                 : 'border focus:border-primary focus:ring-primary'
-            }`}
+              }`}
           />
           {errors.first_name && (
             <p className="mt-1 text-sm text-red-600">{errors.first_name}</p>
@@ -71,11 +70,11 @@ export function BasicInfoSection({ data, errors, onChange }: BasicInfoSectionPro
             id="email"
             value={data.email || ''}
             onChange={(e) => onChange('email', e.target.value)}
-            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-              errors.email
+            placeholder="example@email.com"
+            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors.email
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                 : 'border focus:border-primary focus:ring-primary'
-            }`}
+              }`}
           />
           {errors.email && (
             <p className="mt-1 text-sm text-red-600">{errors.email}</p>

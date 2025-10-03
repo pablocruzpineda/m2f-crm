@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageContainer } from '@/shared/ui/layouts/PageContainer';
 import { ContactForm } from '@/features/contact-form';
 import { useCreateContact } from '@/entities/contact';
@@ -27,9 +28,12 @@ export function ContactCreatePage() {
         ...data,
         workspace_id: currentWorkspace.id,
       });
+      toast.success('Contact created successfully!');
       navigate('/contacts');
     } catch (error) {
       console.error('Failed to create contact:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create contact';
+      toast.error(errorMessage);
       setIsSubmitting(false);
     }
   };

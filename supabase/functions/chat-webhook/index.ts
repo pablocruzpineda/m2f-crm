@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck - This is a Deno Edge Function, not a Node.js file
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -35,8 +36,57 @@ serve(async (req) => {
         const url = new URL(req.url)
         const workspaceIdFromQuery = url.searchParams.get('workspace')
 
+        console.log('=== Incoming Webhook Request ===')
+        console.log('URL:', req.url)
+        console.log('Method:', req.method)
+        console.log('Workspace ID from query:', workspaceIdFromQuery)
+
         // Parse request body
-        const payload: WebhookPayload = await req.json()
+        const rawPayload = await req.json()
+        console.log('Raw payload received:', JSON.stringify(rawPayload, null, 2))
+
+        // Extract data from nested response structure
+        let payload: WebhookPayload
+
+        // Check if response contains nested data (Mind2Flow format)
+        if (rawPayload.response && rawPayload.stdout) {
+            try {
+                // Parse the stdout string which contains the actual data
+                const stdoutData = rawPayload.stdout.trim()
+                // Remove Python-style quotes and parse
+                const cleanedData = stdoutData.replace(/'/g, '"').replace(/True/g, 'true').replace(/False/g, 'false')
+                const parsedData = JSON.parse(cleanedData)
+
+                // Extract sender and message from parsed data
+                const sender = parsedData.data?.sender
+                const message = parsedData.data?.message
+
+                console.log('Parsed Mind2Flow webhook:', { sender, message })
+
+                // Transform to expected format
+                // Note: Phone number is stored AS-IS from WhatsApp to ensure we can match it
+                // Normalization happens when sending messages out
+                payload = {
+                    contact: {
+                        phone: sender,
+                        first_name: 'WhatsApp User',
+                    },
+                    message: {
+                        content: message,
+                        message_type: 'text',
+                    },
+                    timestamp: parsedData.timestamp || new Date().toISOString(),
+                }
+            } catch (parseError) {
+                console.error('Failed to parse Mind2Flow format:', parseError)
+                // Fallback to raw payload
+                payload = rawPayload as WebhookPayload
+            }
+        } else {
+            // Standard format
+            payload = rawPayload as WebhookPayload
+        }
+
         const workspaceId = workspaceIdFromQuery || payload.workspace_id
 
         // Validate workspace_id
@@ -104,14 +154,21 @@ serve(async (req) => {
         const workspaceOwnerId = workspace.owner_id
 
         // 2. Get chat settings to check if auto-create is enabled
-        const { data: settings } = await supabaseClient
+        // Try to get workspace default settings (user_id IS NULL)
+        const { data: settingsArray } = await supabaseClient
             .from('chat_settings')
             .select('auto_create_contacts, is_active')
             .eq('workspace_id', workspaceId)
-            .single()
+            .is('user_id', null)
+            .limit(1)
+
+        const settings = settingsArray?.[0]
+
+        console.log('Chat settings found:', settings)
 
         // Check if integration is active
         if (!settings?.is_active) {
+            console.error('Chat integration is not active or not found for workspace:', workspaceId)
             return new Response(
                 JSON.stringify({ error: 'Chat integration is not active for this workspace' }),
                 {
@@ -124,18 +181,27 @@ serve(async (req) => {
         // 2. Find or create contact by phone number
         let contactId: string | null = null
 
+        console.log('Looking for contact with phone:', payload.contact.phone)
+
         // Try to find existing contact by phone
-        const { data: existingContact } = await supabaseClient
+        const { data: existingContact, error: contactError } = await supabaseClient
             .from('contacts')
             .select('id')
             .eq('workspace_id', workspaceId)
             .eq('phone', payload.contact.phone)
             .single()
 
+        if (contactError) {
+            console.log('Contact lookup error (might be expected if not found):', contactError.message)
+        }
+
         if (existingContact) {
+            console.log('Found existing contact:', existingContact.id)
             contactId = existingContact.id
         } else if (settings.auto_create_contacts) {
             // Auto-create contact if enabled
+            console.log('Auto-creating new contact...')
+            const now = new Date().toISOString()
             const contactData = {
                 workspace_id: workspaceId,
                 first_name: payload.contact.first_name || payload.contact.name || 'Unknown',
@@ -145,7 +211,12 @@ serve(async (req) => {
                 source: 'chat_webhook',
                 status: 'lead',
                 created_by: workspaceOwnerId, // Use workspace owner as creator
+                assigned_to: workspaceOwnerId, // Auto-assign to workspace owner
+                assigned_by: workspaceOwnerId, // Assigned by workspace owner
+                assigned_at: now, // Timestamp of assignment
             }
+
+            console.log('Contact data to insert:', contactData)
 
             const { data: newContact, error: createError } = await supabaseClient
                 .from('contacts')
@@ -164,9 +235,11 @@ serve(async (req) => {
                 )
             }
 
+            console.log('Created new contact:', newContact.id)
             contactId = newContact.id
         } else {
             // Contact doesn't exist and auto-create is disabled
+            console.error('Contact not found and auto-create is disabled for phone:', payload.contact.phone)
             return new Response(
                 JSON.stringify({ error: 'Contact not found and auto-create is disabled' }),
                 {
@@ -177,6 +250,7 @@ serve(async (req) => {
         }
 
         // 3. Insert message
+        console.log('Creating message for contact:', contactId)
         const messageData = {
             workspace_id: workspaceId,
             contact_id: contactId,
@@ -188,6 +262,8 @@ serve(async (req) => {
             status: 'delivered',
             created_at: payload.timestamp || new Date().toISOString(),
         }
+
+        console.log('Message data to insert:', messageData)
 
         const { data: message, error: messageError } = await supabaseClient
             .from('messages')
@@ -205,6 +281,8 @@ serve(async (req) => {
                 }
             )
         }
+
+        console.log('Message created successfully:', message.id)
 
         // 4. Return success response
         return new Response(

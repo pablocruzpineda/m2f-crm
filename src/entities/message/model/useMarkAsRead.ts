@@ -37,6 +37,7 @@ export function useMarkContactMessagesAsRead() {
       if (!currentWorkspace?.id) throw new Error('No workspace selected');
       return markContactMessagesAsRead(currentWorkspace.id, contactId);
     },
+    retry: false, // Prevent infinite retries
     onSuccess: (_, contactId) => {
       // Invalidate contact messages
       queryClient.invalidateQueries({
@@ -52,6 +53,10 @@ export function useMarkContactMessagesAsRead() {
       queryClient.invalidateQueries({
         queryKey: ['messages', 'workspace'],
       });
+    },
+    onError: (error) => {
+      // Log but don't throw to prevent UI issues
+      console.error('Failed to mark messages as read:', error);
     },
   });
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageContainer } from '@/shared/ui/layouts/PageContainer';
 import { ContactForm } from '@/features/contact-form';
 import { useContact, useUpdateContact } from '@/entities/contact';
@@ -23,9 +24,12 @@ export function ContactEditPage() {
     setIsSubmitting(true);
     try {
       await updateContact.mutateAsync({ id, input: data });
+      toast.success('Contact updated successfully!');
       navigate(`/contacts/${id}`);
     } catch (error) {
       console.error('Failed to update contact:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update contact';
+      toast.error(errorMessage);
       setIsSubmitting(false);
     }
   };

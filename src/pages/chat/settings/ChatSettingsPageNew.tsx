@@ -18,6 +18,7 @@ import { Switch } from '@/shared/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Alert, AlertDescription } from '@/shared/ui/alert';
 import { Badge } from '@/shared/ui/badge';
+import { Separator } from '@/shared/ui/separator';
 import {
     useWorkspaceChatSettings,
     usePersonalChatSettings,
@@ -52,6 +53,8 @@ export function ChatSettingsPageNew() {
     const [workspaceKey, setWorkspaceKey] = useState('');
     const [workspaceSecret, setWorkspaceSecret] = useState('');
     const [workspaceActive, setWorkspaceActive] = useState(false);
+    const [workspaceAutoCreate, setWorkspaceAutoCreate] = useState(true);
+    const [workspaceNotifications, setWorkspaceNotifications] = useState(true);
     const [workspaceHasChanges, setWorkspaceHasChanges] = useState(false);
 
     // Personal form state
@@ -59,6 +62,8 @@ export function ChatSettingsPageNew() {
     const [personalKey, setPersonalKey] = useState('');
     const [personalSecret, setPersonalSecret] = useState('');
     const [personalActive, setPersonalActive] = useState(false);
+    const [personalAutoCreate, setPersonalAutoCreate] = useState(true);
+    const [personalNotifications, setPersonalNotifications] = useState(true);
     const [personalHasChanges, setPersonalHasChanges] = useState(false);
 
     // UI state
@@ -76,6 +81,8 @@ export function ChatSettingsPageNew() {
             setWorkspaceKey(workspaceSettings.api_key || '');
             setWorkspaceSecret(workspaceSettings.api_secret || '');
             setWorkspaceActive(workspaceSettings.is_active ?? false);
+            setWorkspaceAutoCreate(workspaceSettings.auto_create_contacts ?? true);
+            setWorkspaceNotifications(workspaceSettings.enable_notifications ?? true);
             setWorkspaceHasChanges(false);
         }
     }, [workspaceSettings]);
@@ -87,6 +94,8 @@ export function ChatSettingsPageNew() {
             setPersonalKey(personalSettings.api_key || '');
             setPersonalSecret(personalSettings.api_secret || '');
             setPersonalActive(personalSettings.is_active ?? false);
+            setPersonalAutoCreate(personalSettings.auto_create_contacts ?? true);
+            setPersonalNotifications(personalSettings.enable_notifications ?? true);
             setPersonalHasChanges(false);
         }
     }, [personalSettings]);
@@ -101,9 +110,11 @@ export function ChatSettingsPageNew() {
             workspaceEndpoint !== (workspaceSettings.api_endpoint || '') ||
             workspaceKey !== (workspaceSettings.api_key || '') ||
             workspaceSecret !== (workspaceSettings.api_secret || '') ||
-            workspaceActive !== (workspaceSettings.is_active ?? false);
+            workspaceActive !== (workspaceSettings.is_active ?? false) ||
+            workspaceAutoCreate !== (workspaceSettings.auto_create_contacts ?? true) ||
+            workspaceNotifications !== (workspaceSettings.enable_notifications ?? true);
         setWorkspaceHasChanges(changed);
-    }, [workspaceEndpoint, workspaceKey, workspaceSecret, workspaceActive, workspaceSettings]);
+    }, [workspaceEndpoint, workspaceKey, workspaceSecret, workspaceActive, workspaceAutoCreate, workspaceNotifications, workspaceSettings]);
 
     // Track personal changes
     useEffect(() => {
@@ -117,9 +128,11 @@ export function ChatSettingsPageNew() {
             personalEndpoint !== (personalSettings.api_endpoint || '') ||
             personalKey !== (personalSettings.api_key || '') ||
             personalSecret !== (personalSettings.api_secret || '') ||
-            personalActive !== (personalSettings.is_active ?? false);
+            personalActive !== (personalSettings.is_active ?? false) ||
+            personalAutoCreate !== (personalSettings.auto_create_contacts ?? true) ||
+            personalNotifications !== (personalSettings.enable_notifications ?? true);
         setPersonalHasChanges(changed);
-    }, [personalEndpoint, personalKey, personalSecret, personalActive, personalSettings]);
+    }, [personalEndpoint, personalKey, personalSecret, personalActive, personalAutoCreate, personalNotifications, personalSettings]);
 
     const handleSaveWorkspace = async () => {
         await updateWorkspaceSettings.mutateAsync({
@@ -127,6 +140,8 @@ export function ChatSettingsPageNew() {
             api_key: workspaceKey || null,
             api_secret: workspaceSecret || null,
             is_active: workspaceActive,
+            auto_create_contacts: workspaceAutoCreate,
+            enable_notifications: workspaceNotifications,
         });
     };
 
@@ -136,6 +151,8 @@ export function ChatSettingsPageNew() {
             api_key: personalKey || null,
             api_secret: personalSecret || null,
             is_active: personalActive,
+            auto_create_contacts: personalAutoCreate,
+            enable_notifications: personalNotifications,
         });
     };
 
@@ -278,6 +295,40 @@ export function ChatSettingsPageNew() {
                                     />
                                 </div>
 
+                                <Separator />
+
+                                {/* Auto-create Contacts */}
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="personal-auto-create">Auto-create Contacts</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Automatically create new contacts from incoming messages
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="personal-auto-create"
+                                        checked={personalAutoCreate}
+                                        onCheckedChange={setPersonalAutoCreate}
+                                    />
+                                </div>
+
+                                <Separator />
+
+                                {/* Enable Notifications */}
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="personal-notifications">Browser Notifications</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Show desktop notifications for new messages
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="personal-notifications"
+                                        checked={personalNotifications}
+                                        onCheckedChange={setPersonalNotifications}
+                                    />
+                                </div>
+
                                 <div className="flex gap-2 pt-2">
                                     <Button
                                         variant="outline"
@@ -393,6 +444,40 @@ export function ChatSettingsPageNew() {
                                         id="workspace-active"
                                         checked={workspaceActive}
                                         onCheckedChange={setWorkspaceActive}
+                                    />
+                                </div>
+
+                                <Separator />
+
+                                {/* Workspace Auto-create Contacts */}
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="workspace-auto-create">Auto-create Contacts</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Default setting for team members without personal configuration
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="workspace-auto-create"
+                                        checked={workspaceAutoCreate}
+                                        onCheckedChange={setWorkspaceAutoCreate}
+                                    />
+                                </div>
+
+                                <Separator />
+
+                                {/* Workspace Enable Notifications */}
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="workspace-notifications">Browser Notifications</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Default setting for team members without personal configuration
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        id="workspace-notifications"
+                                        checked={workspaceNotifications}
+                                        onCheckedChange={setWorkspaceNotifications}
                                     />
                                 </div>
 

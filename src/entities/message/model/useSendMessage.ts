@@ -18,12 +18,14 @@ export function useSendMessage() {
   return useMutation<Message, Error, Omit<CreateMessageInput, 'workspace_id'>, OptimisticContext>({
     mutationFn: async (input) => {
       if (!currentWorkspace?.id) throw new Error('No workspace selected');
-      
+
       return sendMessage({
         ...input,
         workspace_id: currentWorkspace.id,
       });
     },
+    // Prevent infinite retries
+    retry: false,
     // Optimistic update: show message immediately before server responds
     onMutate: async (newMessageInput) => {
       if (!currentWorkspace?.id) {

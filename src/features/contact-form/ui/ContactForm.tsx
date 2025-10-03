@@ -65,8 +65,8 @@ export function ContactForm({
       newErrors.first_name = 'First name is required';
     }
 
-    // Email validation (if provided)
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    // Email validation (if provided and not empty)
+    if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
     }
 
@@ -98,7 +98,22 @@ export function ContactForm({
       return;
     }
 
-    onSubmit(formData as Omit<CreateContactInput, 'workspace_id'>);
+    // Clean up empty strings - convert to undefined for optional fields
+    // This ensures optional fields are not sent as empty strings to the database
+    const cleanedData: Partial<CreateContactInput> = {};
+
+    Object.entries(formData).forEach(([key, value]) => {
+      const fieldKey = key as keyof CreateContactInput;
+      // Keep the value if it's not a string, or if it has content after trimming
+      if (typeof value !== 'string') {
+        cleanedData[fieldKey] = value as never;
+      } else if (value.trim()) {
+        cleanedData[fieldKey] = value as never;
+      }
+      // Otherwise, don't include the field (undefined) - let database use NULL
+    });
+
+    onSubmit(cleanedData as Omit<CreateContactInput, 'workspace_id'>);
   };
 
   return (

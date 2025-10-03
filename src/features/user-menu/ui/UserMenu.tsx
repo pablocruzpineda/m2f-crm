@@ -17,11 +17,11 @@ export function UserMenu({ user }: UserMenuProps) {
 
   const initials = user.full_name
     ? user.full_name
-        .split(' ')
-        .map((n: string) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
+      .split(' ')
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
     : user.email.slice(0, 2).toUpperCase();
 
   return (
@@ -43,7 +43,7 @@ export function UserMenu({ user }: UserMenuProps) {
       </button>
 
       {/* Dropdown Menu */}
-      <div className="absolute right-0 top-full mt-2 hidden w-56 rounded-lg border border bg-card shadow-lg group-hover:block">
+      <div className="absolute right-0 top-full mt-2 hidden w-56 rounded-lg border border bg-card shadow-lg group-hover:block z-[100]">
         {/* User Info */}
         <div className="border-b border px-4 py-3">
           <p className="text-sm font-medium text-foreground">
@@ -55,7 +55,7 @@ export function UserMenu({ user }: UserMenuProps) {
         {/* Menu Items */}
         <div className="py-1">
           <Link
-            to="/profile"
+            to="/settings/profile"
             className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-muted"
           >
             <User className="mr-3 h-4 w-4" />
@@ -66,7 +66,14 @@ export function UserMenu({ user }: UserMenuProps) {
             className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-muted"
           >
             <Settings className="mr-3 h-4 w-4" />
-            Settings
+            Appearance
+          </Link>
+          <Link
+            to="/settings/team"
+            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-muted"
+          >
+            <Settings className="mr-3 h-4 w-4" />
+            Team Settings
           </Link>
         </div>
 

@@ -4,3 +4,4 @@
  */
 
 export { AppearanceSettingsPage } from './ui/AppearanceSettingsPage';
+export { ProfileSettingsPage } from './ui/ProfileSettingsPage';

@@ -3,53 +3,59 @@
  * @description Dashboard statistics cards
  */
 
-import { Users, Workflow, TrendingUp, DollarSign } from 'lucide-react';
-
-type ChangeType = 'positive' | 'negative' | 'neutral';
-
-interface Stat {
-  name: string;
-  value: string;
-  icon: typeof Users;
-  change: string;
-  changeType: ChangeType;
-}
-
-const stats: Stat[] = [
-  {
-    name: 'Total Contacts',
-    value: '0',
-    icon: Users,
-    change: '+0%',
-    changeType: 'neutral',
-  },
-  {
-    name: 'Active Pipelines',
-    value: '0',
-    icon: Workflow,
-    change: '+0%',
-    changeType: 'neutral',
-  },
-  {
-    name: 'Conversion Rate',
-    value: '0%',
-    icon: TrendingUp,
-    change: '+0%',
-    changeType: 'neutral',
-  },
-  {
-    name: 'Revenue',
-    value: '$0',
-    icon: DollarSign,
-    change: '+0%',
-    changeType: 'neutral',
-  },
-];
+import { Users, Workflow, MessageSquare, UsersRound } from 'lucide-react';
+import { useDashboardStats } from '@/entities/dashboard';
+import { useCurrentWorkspace } from '@/entities/workspace';
+import { Skeleton } from '@/shared/ui/skeleton/LoadingSkeleton';
 
 export function StatsSection() {
+  const { currentWorkspace } = useCurrentWorkspace();
+  const { data: stats, isLoading } = useDashboardStats(currentWorkspace?.id);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} className="h-32 w-full rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  const statCards = [
+    {
+      name: 'Total Contacts',
+      value: stats?.totalContacts || 0,
+      icon: Users,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+    },
+    {
+      name: 'Active Deals',
+      value: stats?.totalDeals || 0,
+      icon: Workflow,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+    },
+    {
+      name: 'Messages',
+      value: stats?.totalMessages || 0,
+      icon: MessageSquare,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+    },
+    {
+      name: 'Team Members',
+      value: stats?.activeTeamMembers || 0,
+      icon: UsersRound,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+    },
+  ];
+
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat) => {
+      {statCards.map((stat) => {
         const Icon = stat.icon;
         return (
           <div
@@ -58,28 +64,14 @@ export function StatsSection() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                <p className="text-sm font-medium text-muted-foreground">{stat.name}</p>
                 <p className="mt-2 text-3xl font-semibold text-foreground">
-                  {stat.value}
+                  {stat.value.toLocaleString()}
                 </p>
               </div>
-              <div className="rounded-lg bg-primary/5 p-3">
-                <Icon className="h-6 w-6 text-primary" />
+              <div className={`rounded-lg ${stat.bgColor} p-3`}>
+                <Icon className={`h-6 w-6 ${stat.color}`} />
               </div>
-            </div>
-            <div className="mt-4">
-              <span
-                className={`text-sm font-medium ${
-                  stat.changeType === 'positive'
-                    ? 'text-green-600'
-                    : stat.changeType === 'negative'
-                      ? 'text-red-600'
-                      : 'text-gray-600'
-                }`}
-              >
-                {stat.change}
-              </span>
-              <span className="text-sm text-gray-600"> from last month</span>
             </div>
           </div>
         );
