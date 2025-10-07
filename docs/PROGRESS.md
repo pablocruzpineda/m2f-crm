@@ -158,12 +158,12 @@
 ---
 
 ## Phase 6: Task & Activity Management (Next) 🎯
-- [ ] Task database schema
-- [ ] Task list and calendar views
-- [ ] Task creation and assignment
+- [ ] Calendar views
+- [ ] Meeting scheduling
+- [ ] Meeting notes
+- [ ] Meeting reminders
+- [ ] Availability management
 - [ ] Activity logging
-- [ ] Task reminders
-- [ ] Task filtering
 
 **Status**: Pending
 
@@ -188,17 +188,6 @@
 - [ ] Contact statistics
 - [ ] Custom widgets
 - [ ] Export reports
-
-**Status**: Pending
-
----
-
-## Phase 9: Calendar & Meetings ⏳
-- [ ] Calendar integration
-- [ ] Meeting scheduling
-- [ ] Meeting notes
-- [ ] Availability management
-- [ ] Video call integration
 
 **Status**: Pending
 

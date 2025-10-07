@@ -14,6 +14,7 @@ import {
   Coins,
   Bot,
   Smartphone,
+  Calendar,
 } from 'lucide-react';
 import type { NavigationGroup } from '@/shared/lib/navigation/types';
 
@@ -39,6 +40,11 @@ export const navigationGroups: NavigationGroup[] = [
         label: 'Pipeline',
         href: '/pipeline',
         icon: Workflow,
+      },
+      {
+        label: 'Calendar',
+        href: '/calendar',
+        icon: Calendar,
       },
       {
         label: 'Chat',

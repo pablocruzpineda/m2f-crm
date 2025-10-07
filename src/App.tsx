@@ -13,6 +13,7 @@ import { ChatPage, ChatSettingsPage } from '@/pages/chat';
 import { ActivityFeedPage } from '@/pages/activity';
 import { AcceptInvitationPage } from '@/pages/accept-invitation/AcceptInvitationPage';
 import { CreditsPage, AgentsPage, DevicesPage } from '@/pages/intelligence';
+import { CalendarPage } from '@/pages/calendar';
 import { MainLayout } from '@/shared/ui/layouts/MainLayout';
 import { ProtectedRoute } from '@/shared/ui/protected-route.js';
 
@@ -234,6 +235,18 @@ function App() {
                     <ProtectedRoute>
                       <MainLayout>
                         <DevicesPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Calendar */}
+                <Route
+                  path="/calendar"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <CalendarPage />
                       </MainLayout>
                     </ProtectedRoute>
                   }
