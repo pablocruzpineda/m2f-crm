@@ -53,11 +53,12 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
-  
+
   /* Ensure inputs and textareas have proper dark mode styling */
   input[type="text"],
   input[type="email"],
@@ -72,7 +73,7 @@
   select {
     @apply bg-background text-foreground;
   }
-  
+
   /* Dark mode specific input styling */
   .dark input[type="text"],
   .dark input[type="email"],
@@ -86,5 +87,104 @@
   .dark textarea,
   .dark select {
     @apply bg-muted border-input;
+  }
+}
+
+@layer components {
+
+  /* Tiptap Editor Styles */
+  .ProseMirror {
+    @apply focus:outline-none;
+  }
+
+  .ProseMirror p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Prose styling for rich text */
+  .prose {
+    @apply text-foreground;
+  }
+
+  .prose h2 {
+    @apply text-xl font-bold mt-4 mb-2;
+  }
+
+  .prose h3 {
+    @apply text-lg font-semibold mt-3 mb-2;
+  }
+
+  .prose p {
+    @apply my-2;
+  }
+
+  .prose ul,
+  .prose ol {
+    @apply my-2 ml-6;
+  }
+
+  .prose ul {
+    @apply list-disc;
+  }
+
+  .prose ol {
+    @apply list-decimal;
+  }
+
+  .prose li {
+    @apply my-1;
+  }
+
+  .prose code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm;
+  }
+
+  .prose pre {
+    @apply bg-muted p-4 rounded-lg my-3 overflow-x-auto;
+  }
+
+  .prose pre code {
+    @apply bg-transparent p-0;
+  }
+
+  .prose blockquote {
+    @apply border-l-4 border-primary pl-4 italic my-3;
+  }
+
+  .prose strong {
+    @apply font-bold;
+  }
+
+  .prose em {
+    @apply italic;
+  }
+
+  .prose s {
+    @apply line-through;
+  }
+
+  .prose hr {
+    @apply my-4 border-border;
+  }
+
+  /* Task list styling */
+  .prose ul[data-type="taskList"] {
+    @apply list-none ml-0;
+  }
+
+  .prose ul[data-type="taskList"] li {
+    @apply flex items-start gap-2;
+  }
+
+  .prose ul[data-type="taskList"] li input[type="checkbox"] {
+    @apply mt-1 cursor-pointer;
+  }
+
+  .prose ul[data-type="taskList"] li>div {
+    @apply flex-1;
   }
 }

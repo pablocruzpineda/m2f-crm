@@ -41,6 +41,11 @@ export interface MeetingNote {
     created_by: string;
     created_at: string;
     updated_at: string;
+    author?: {
+        id: string;
+        full_name: string | null;
+        email: string;
+    } | null;
 }
 
 // Extended types with relations

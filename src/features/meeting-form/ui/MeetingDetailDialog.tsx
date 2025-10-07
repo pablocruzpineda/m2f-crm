@@ -15,6 +15,10 @@ import {
     Edit,
     Trash2,
     ExternalLink,
+    FileText,
+    Plus,
+    Save,
+    X,
 } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
 import {
@@ -38,11 +42,19 @@ import {
 import { Badge } from '@/shared/ui/badge';
 import { Card } from '@/shared/ui/card';
 import { Separator } from '@/shared/ui/separator';
-import { useMeeting, useDeleteMeeting } from '@/entities/meeting';
-import type { MeetingWithDetails } from '@/entities/meeting';
+import {
+    useMeeting,
+    useDeleteMeeting,
+    useMeetingNotes,
+    useCreateNote,
+    useUpdateNote,
+    useDeleteNote,
+} from '@/entities/meeting';
+import type { MeetingWithDetails, MeetingNote } from '@/entities/meeting';
 import { useTeamMembers } from '@/entities/team';
 import { useContacts } from '@/entities/contact';
 import { useCurrentWorkspace } from '@/entities/workspace';
+import { RichTextEditor, RichTextDisplay } from '@/shared/ui/editor';
 
 interface MeetingDetailDialogProps {
     meetingId: string | null;
@@ -58,7 +70,24 @@ export function MeetingDetailDialog({
     onEdit,
 }: MeetingDetailDialogProps) {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showDeleteNoteDialog, setShowDeleteNoteDialog] = useState(false);
+    const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+    const [isAddingNote, setIsAddingNote] = useState(false);
+    const [newNoteContent, setNewNoteContent] = useState('');
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+    const [editNoteContent, setEditNoteContent] = useState('');
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
     const { currentWorkspace } = useCurrentWorkspace();
+
+    // Fetch current user
+    useState(() => {
+        import('@/shared/lib/supabase/client').then(({ supabase }) => {
+            supabase.auth.getUser().then(({ data }) => {
+                setCurrentUserId(data.user?.id || null);
+            });
+        });
+    });
 
     // Fetch meeting details
     const { data: meeting, isLoading } = useMeeting(meetingId || '');
@@ -68,6 +97,12 @@ export function MeetingDetailDialog({
     const { data: teamMembers = [] } = useTeamMembers();
     const { data: contactsData } = useContacts(currentWorkspace?.id);
     const contacts = contactsData?.data || [];
+
+    // Fetch notes
+    const { data: notes = [] } = useMeetingNotes(meetingId || undefined);
+    const createNote = useCreateNote();
+    const updateNote = useUpdateNote(meetingId || '');
+    const deleteNote = useDeleteNote(meetingId || '');
 
     // Helper function to get participant name
     const getParticipantName = (participant: { user_id?: string | null; contact_id?: string | null }) => {
@@ -98,6 +133,60 @@ export function MeetingDetailDialog({
             onEdit(meeting);
             onOpenChange(false);
         }
+    };
+
+    const handleAddNote = () => {
+        if (!meetingId || !newNoteContent.trim()) return;
+
+        createNote.mutate(
+            { meeting_id: meetingId, content: newNoteContent },
+            {
+                onSuccess: () => {
+                    setNewNoteContent('');
+                    setIsAddingNote(false);
+                },
+            }
+        );
+    };
+
+    const handleUpdateNote = (noteId: string) => {
+        if (!editNoteContent.trim()) return;
+
+        updateNote.mutate(
+            { noteId, input: { content: editNoteContent } },
+            {
+                onSuccess: () => {
+                    setEditingNoteId(null);
+                    setEditNoteContent('');
+                },
+            }
+        );
+    };
+
+    const handleDeleteNote = (noteId: string) => {
+        setNoteToDelete(noteId);
+        setShowDeleteNoteDialog(true);
+    };
+
+    const confirmDeleteNote = () => {
+        if (noteToDelete) {
+            deleteNote.mutate(noteToDelete, {
+                onSuccess: () => {
+                    setShowDeleteNoteDialog(false);
+                    setNoteToDelete(null);
+                },
+            });
+        }
+    };
+
+    const startEditingNote = (note: MeetingNote) => {
+        setEditingNoteId(note.id);
+        setEditNoteContent(note.content);
+    };
+
+    const cancelEditingNote = () => {
+        setEditingNoteId(null);
+        setEditNoteContent('');
     };
 
     if (!open || !meetingId) return null;
@@ -239,6 +328,151 @@ export function MeetingDetailDialog({
                                     {meeting.status}
                                 </Badge>
                             </div>
+
+                            <Separator />
+
+                            {/* Meeting Notes */}
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <FileText className="h-5 w-5 text-muted-foreground" />
+                                        <h3 className="text-sm font-medium">
+                                            Meeting Notes ({notes.length})
+                                        </h3>
+                                    </div>
+                                    {!isAddingNote && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsAddingNote(true)}
+                                        >
+                                            <Plus className="h-4 w-4 mr-1" />
+                                            Add Note
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Add Note Form */}
+                                {isAddingNote && (
+                                    <Card className="p-4 mb-4">
+                                        <div className="space-y-3">
+                                            <RichTextEditor
+                                                content={newNoteContent}
+                                                onChange={setNewNoteContent}
+                                                placeholder="Write your meeting notes here..."
+                                                className="min-h-[200px]"
+                                            />
+                                            <div className="flex gap-2 justify-end">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setIsAddingNote(false);
+                                                        setNewNoteContent('');
+                                                    }}
+                                                >
+                                                    <X className="h-4 w-4 mr-1" />
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={handleAddNote}
+                                                    disabled={!newNoteContent.trim() || createNote.isPending}
+                                                >
+                                                    <Save className="h-4 w-4 mr-1" />
+                                                    {createNote.isPending ? 'Saving...' : 'Save Note'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                )}
+
+                                {/* Notes List */}
+                                <div className="space-y-3">
+                                    {notes.length === 0 && !isAddingNote ? (
+                                        <Card className="p-8 text-center">
+                                            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                                            <p className="text-sm text-muted-foreground mb-2">
+                                                No notes yet
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Add notes to document key points from this meeting
+                                            </p>
+                                        </Card>
+                                    ) : (
+                                        notes.map((note) => (
+                                            <Card key={note.id} className="p-4">
+                                                {editingNoteId === note.id ? (
+                                                    // Edit Mode
+                                                    <div className="space-y-3">
+                                                        <RichTextEditor
+                                                            content={editNoteContent}
+                                                            onChange={setEditNoteContent}
+                                                            placeholder="Edit your note..."
+                                                        />
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={cancelEditingNote}
+                                                            >
+                                                                <X className="h-4 w-4 mr-1" />
+                                                                Cancel
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={() => handleUpdateNote(note.id)}
+                                                                disabled={!editNoteContent.trim() || updateNote.isPending}
+                                                            >
+                                                                <Save className="h-4 w-4 mr-1" />
+                                                                {updateNote.isPending ? 'Saving...' : 'Save'}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    // View Mode
+                                                    <>
+                                                        <div className="flex items-start justify-between mb-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <User className="h-4 w-4 text-muted-foreground" />
+                                                                <span className="text-sm font-medium">
+                                                                    {note.author?.full_name || note.author?.email || 'Unknown'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {format(new Date(note.created_at), 'PPp')}
+                                                                </span>
+                                                                {currentUserId === note.created_by && (
+                                                                    <div className="flex gap-1">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => startEditingNote(note)}
+                                                                            className="h-7 w-7 p-0"
+                                                                        >
+                                                                            <Edit className="h-3 w-3" />
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() => handleDeleteNote(note.id)}
+                                                                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <RichTextDisplay content={note.content} />
+                                                    </>
+                                                )}
+                                            </Card>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center justify-center p-8">
@@ -268,13 +502,13 @@ export function MeetingDetailDialog({
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
+            {/* Delete Meeting Confirmation Dialog */}
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Meeting?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete this meeting. This action cannot be undone.
+                            This will permanently delete this meeting and all associated notes. This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -283,7 +517,31 @@ export function MeetingDetailDialog({
                             onClick={handleDelete}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            Delete
+                            Delete Meeting
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Note Confirmation Dialog */}
+            <AlertDialog open={showDeleteNoteDialog} onOpenChange={setShowDeleteNoteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Note?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this note. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setNoteToDelete(null)}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDeleteNote}
+                            disabled={deleteNote.isPending}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {deleteNote.isPending ? 'Deleting...' : 'Delete Note'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

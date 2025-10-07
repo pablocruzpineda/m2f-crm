@@ -19,6 +19,8 @@ export * from './model/useAddParticipant';
 export * from './model/useRemoveParticipant';
 export * from './model/useMeetingNotes';
 export * from './model/useCreateNote';
+export * from './model/useUpdateNote';
+export * from './model/useDeleteNote';
 export * from './model/useMeetingSubscription';
 
 // Types
