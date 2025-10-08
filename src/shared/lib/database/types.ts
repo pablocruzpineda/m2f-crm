@@ -1184,38 +1184,52 @@ export type Database = {
       workspaces: {
         Row: {
           created_at: string
+          custom_domain: string | null
           id: string
           logo_storage_path: string | null
           logo_url: string | null
           name: string
           owner_id: string
+          parent_workspace_id: string | null
           slug: string
           theme_config: Json | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          custom_domain?: string | null
           id?: string
           logo_storage_path?: string | null
           logo_url?: string | null
           name: string
           owner_id: string
+          parent_workspace_id?: string | null
           slug: string
           theme_config?: Json | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          custom_domain?: string | null
           id?: string
           logo_storage_path?: string | null
           logo_url?: string | null
           name?: string
           owner_id?: string
+          parent_workspace_id?: string | null
           slug?: string
           theme_config?: Json | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workspaces_parent_workspace_id_fkey"
+            columns: ["parent_workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
@@ -1229,6 +1243,77 @@ export type Database = {
           workspace_slug: string
         }
         Returns: string
+      }
+      create_sub_account_workspace: {
+        Args: {
+          p_master_workspace_id: string
+          p_sub_account_name: string
+          p_sub_account_slug: string
+          p_admin_user_id: string
+          p_master_owner_id: string
+        }
+        Returns: string
+      }
+      get_sub_accounts: {
+        Args: {
+          p_master_workspace_id: string
+        }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+          owner_id: string
+          admin_email: string
+          admin_name: string
+          member_count: number
+          created_at: string
+        }[]
+      }
+      get_master_workspace_for_user: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: {
+          workspace_id: string
+          workspace_name: string
+          is_owner: boolean
+        }[]
+      }
+      is_sub_account_workspace: {
+        Args: {
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      get_workspace_by_hostname: {
+        Args: {
+          p_hostname: string
+        }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+          owner_id: string
+          parent_workspace_id: string | null
+          custom_domain: string | null
+          theme_config: Json | null
+          logo_url: string | null
+        }[]
+      }
+      get_workspace_by_slug: {
+        Args: {
+          p_slug: string
+        }
+        Returns: {
+          id: string
+          name: string
+          slug: string
+          owner_id: string
+          parent_workspace_id: string | null
+          custom_domain: string | null
+          theme_config: Json | null
+          logo_url: string | null
+        }[]
       }
     }
     Enums: {

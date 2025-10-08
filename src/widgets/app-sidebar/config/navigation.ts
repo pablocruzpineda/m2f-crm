@@ -15,6 +15,7 @@ import {
   Bot,
   Smartphone,
   Calendar,
+  Building2,
 } from 'lucide-react';
 import type { NavigationGroup } from '@/shared/lib/navigation/types';
 
@@ -85,6 +86,11 @@ export const navigationGroups: NavigationGroup[] = [
         label: 'Team',
         href: '/settings/team',
         icon: UsersRound,
+      },
+      {
+        label: 'Sub-Accounts',
+        href: '/settings/sub-accounts',
+        icon: Building2,
       },
       {
         label: 'Appearance',

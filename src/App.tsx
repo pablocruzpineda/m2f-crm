@@ -9,6 +9,7 @@ import { ContactsPage, ContactCreatePage, ContactDetailPage, ContactEditPage } f
 import { PipelinePage, DealCreatePage, DealDetailPage, DealEditPage } from '@/pages/pipeline';
 import { AppearanceSettingsPage, ProfileSettingsPage } from '@/pages/settings';
 import { TeamMembersPage } from '@/pages/settings/team/TeamMembersPage';
+import { SubAccountsPage } from '@/pages/sub-accounts';
 import { ChatPage, ChatSettingsPage } from '@/pages/chat';
 import { ActivityFeedPage } from '@/pages/activity';
 import { AcceptInvitationPage } from '@/pages/accept-invitation/AcceptInvitationPage';
@@ -190,6 +191,17 @@ function App() {
                     <ProtectedRoute>
                       <MainLayout>
                         <TeamMembersPage />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/settings/sub-accounts"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <SubAccountsPage />
                       </MainLayout>
                     </ProtectedRoute>
                   }

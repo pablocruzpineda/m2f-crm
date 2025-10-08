@@ -3,8 +3,8 @@
  * @description Workspace switcher dropdown
  */
 
-import { useState } from 'react';
-import { Check, ChevronDown, Plus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useWorkspaces, useCurrentWorkspace } from '@/entities/workspace';
 import { useSession } from '@/entities/session';
 import type { Workspace } from '@/shared/lib/auth/types';
@@ -12,9 +12,42 @@ import { cn } from '@/shared/lib/utils';
 
 export function WorkspaceSwitcher() {
   const { session } = useSession();
-  const { data: workspaces, isLoading } = useWorkspaces(session?.user?.id);
+  const { data: allWorkspaces, isLoading } = useWorkspaces(session?.user?.id);
   const { currentWorkspace, setCurrentWorkspace } = useCurrentWorkspace();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Filter workspaces based on multi-tenant rules
+  const workspaces = useMemo(() => {
+    if (!allWorkspaces || !session?.user?.id) return [];
+
+    // Find master workspaces (where user is owner and parent_workspace_id is null)
+    const masterWorkspaces = allWorkspaces.filter(
+      (w: Workspace) => w.owner_id === session.user.id && !w.parent_workspace_id
+    );
+
+    // Find sub-account workspaces (where user is owner and has parent_workspace_id)
+    const ownedSubAccounts = allWorkspaces.filter(
+      (w: Workspace) => w.owner_id === session.user.id && w.parent_workspace_id
+    );
+
+    // If user owns master workspace(s), show master + all their sub-accounts
+    if (masterWorkspaces.length > 0) {
+      // Get all sub-accounts where user is owner (for visibility)
+      const subAccounts = allWorkspaces.filter(
+        (w: Workspace) => w.parent_workspace_id &&
+          masterWorkspaces.some(m => m.id === w.parent_workspace_id)
+      );
+      return [...masterWorkspaces, ...subAccounts];
+    }
+
+    // If user only owns sub-account(s), show only their sub-accounts
+    if (ownedSubAccounts.length > 0) {
+      return ownedSubAccounts;
+    }
+
+    // Otherwise, show all workspaces they're a member of (original behavior)
+    return allWorkspaces;
+  }, [allWorkspaces, session?.user?.id]);
 
   if (isLoading || !workspaces || workspaces.length === 0) {
     return null;
@@ -88,12 +121,6 @@ export function WorkspaceSwitcher() {
                   </button>
                 );
               })}
-            </div>
-            <div className="border-t border py-1">
-              <button className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-muted">
-                <Plus className="mr-2 h-4 w-4" />
-                Create workspace
-              </button>
             </div>
           </div>
         </>
